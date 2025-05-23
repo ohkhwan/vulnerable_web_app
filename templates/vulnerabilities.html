@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>취약점 게시판 - Vulnerability Board</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px; /* Adjusted for potentially wider table */
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input, select, textarea {
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+            /* width: 100%; Removed to be more flexible for search input */
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff; /* Changed to blue for distinction */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .nav {
+            margin-bottom: 20px;
+            display: flex; /* For aligning user status to the right */
+            justify-content: space-between; /* For aligning user status */
+            align-items: center; /* For aligning user status */
+        }
+        .nav-links a { /* Group for main navigation links */
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .nav-user { /* Container for user status */
+            /* float: right; Replaced by flexbox */
+        }
+        .nav-user a {
+            text-decoration: none;
+            color: #007bff;
+        }
+        .board-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .board-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .board-table th, .board-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            word-break: break-word; /* Help prevent layout breaking with long descriptions */
+        }
+        .board-table th {
+            background-color: #f2f2f2;
+        }
+        .board-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .search-box {
+            display: flex;
+            margin: 20px 0;
+        }
+        .search-box input {
+            flex: 1;
+            margin-right: 10px;
+            width: auto; /* Override general input style */
+        }
+        .no-results {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .pagination {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .pagination button {
+            margin: 0 5px;
+        }
+        .pagination span {
+            margin: 0 10px;
+        }
+        .description-cell {
+            max-width: 300px; /* Limit description width */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .description-cell.expanded {
+            white-space: normal;
+            overflow: visible;
+        }
+    </style>
+</head>
+<body>
+    <h1>취약점 정보 시스템</h1>
+    <div class="nav">
+        <div class="nav-links">
+            <a href="index.html">홈</a>
+            <a href="myinfo.html">내 정보</a>
+            <a href="board.html">게시판</a>
+            <a href="vulnerabilities.html">취약점 게시판</a>
+            <a href="xml_parser.html">XML 파서</a>
+            <a href="redirect.html">URL 리다이렉션</a>
+            <a href="ssrf_test.html">SSRF 테스트</a>
+        </div>
+        <div class="nav-user" id="user-status">
+            <!-- User status will be loaded here by JavaScript -->
+             <a href="login.html">로그인</a> | <a href="register.html">회원가입</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="board-header">
+            <h2>취약점 게시판</h2>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="CVE ID 또는 설명 검색...">
+            <button id="search-button">검색</button>
+        </div>
+        
+        <div id="message-area" class="message" style="display: none;"></div>
+        
+        <table class="board-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">CVE ID</th>
+                    <th style="width: 40%;">설명 (Description)</th>
+                    <th style="width: 10%;">심각도 (Severity)</th>
+                    <th style="width: 10%;">CVSSv3 Score</th>
+                    <th style="width: 15%;">게시일 (Published)</th>
+                    <th style="width: 10%;">출처 (Source)</th>
+                </tr>
+            </thead>
+            <tbody id="vulnerabilities-body">
+                <!-- Vulnerability data will be loaded here -->
+            </tbody>
+        </table>
+        <div id="no-vulnerabilities" class="no-results" style="display: none;">
+            해당 조건에 맞는 취약점 정보를 찾을 수 없습니다.
+        </div>
+
+        <div class="pagination">
+            <button id="prev-page" disabled>이전</button>
+            <span id="page-info">Page 1 of 1</span>
+            <button id="next-page" disabled>다음</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentSearchTerm = '';
+        const itemsPerPage = 10; // Should match API's per_page default or be configurable
+
+        // HTML 특수문자 이스케이프 함수
+        function escapeHTML(text) {
+            if (text === null || typeof text === 'undefined') return '';
+            if (typeof text !== 'string') return String(text); // Ensure text is a string
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function toggleDescription(element) {
+            element.classList.toggle('expanded');
+            if (element.classList.contains('expanded')) {
+                element.title = "클릭하여 간단히 보기";
+            } else {
+                element.title = "클릭하여 자세히 보기";
+            }
+        }
+
+        async function loadVulnerabilities(page = 1, searchTerm = '') {
+            currentPage = page;
+            currentSearchTerm = searchTerm;
+            const vulnerabilitiesBody = document.getElementById("vulnerabilities-body");
+            const noVulnerabilitiesDiv = document.getElementById("no-vulnerabilities");
+            const messageArea = document.getElementById("message-area");
+            
+            messageArea.style.display = 'none'; // Hide previous messages
+            vulnerabilitiesBody.innerHTML = '<tr><td colspan="6" style="text-align:center;">로딩 중...</td></tr>'; // Loading indicator
+
+            let url = `/api/vulnerabilities?page=${page}&per_page=${itemsPerPage}`;
+            if (searchTerm) {
+                url += `&search=${encodeURIComponent(searchTerm)}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: `HTTP 오류! 상태 코드: ${response.status}` }));
+                    throw new Error(errorData.message || `HTTP 오류! 상태 코드: ${response.status}`);
+                }
+                const data = await response.json();
+
+                vulnerabilitiesBody.innerHTML = ''; // Clear loading or previous results
+
+                if (data.success && data.vulnerabilities && data.vulnerabilities.length > 0) {
+                    data.vulnerabilities.forEach(vuln => {
+                        const row = vulnerabilitiesBody.insertRow();
+                        row.insertCell().innerHTML = `<a href="https://nvd.nist.gov/vuln/detail/${escapeHTML(vuln.cve_id)}" target="_blank">${escapeHTML(vuln.cve_id)}</a>`;
+                        
+                        const descriptionCell = row.insertCell();
+                        descriptionCell.className = 'description-cell';
+                        descriptionCell.title = "클릭하여 자세히 보기";
+                        descriptionCell.textContent = escapeHTML(vuln.description) || 'N/A'; // Use textContent for safety
+                        descriptionCell.onclick = function() { toggleDescription(this); };
+
+                        row.insertCell().textContent = escapeHTML(vuln.severity) || 'N/A';
+                        row.insertCell().textContent = vuln.cvss_v3_score !== null ? escapeHTML(vuln.cvss_v3_score) : 'N/A';
+                        row.insertCell().textContent = formatDate(vuln.published_date);
+                        row.insertCell().textContent = escapeHTML(vuln.source_identifier) || 'N/A';
+                    });
+                    noVulnerabilitiesDiv.style.display = "none";
+                } else {
+                    noVulnerabilitiesDiv.style.display = "block";
+                }
+                updatePagination(data.total_count, data.page, data.per_page);
+            } catch (error) {
+                console.error('취약점 정보 로드 실패:', error);
+                vulnerabilitiesBody.innerHTML = ''; // Clear loading message on error
+                noVulnerabilitiesDiv.style.display = "block"; // Show no results on error too
+                showMessage(`오류: ${error.message || '취약점 정보를 불러오는 중 오류가 발생했습니다.'}`, "error");
+                updatePagination(0, 1, itemsPerPage); // Reset pagination on error
+            }
+        }
+
+        function updatePagination(totalItems, currentPage, itemsPerPageParam) {
+            const pageInfo = document.getElementById("page-info");
+            const prevButton = document.getElementById("prev-page");
+            const nextButton = document.getElementById("next-page");
+
+            const totalPages = Math.ceil(totalItems / itemsPerPageParam) || 1;
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+            prevButton.disabled = currentPage <= 1;
+            nextButton.disabled = currentPage >= totalPages;
+        }
+
+        function searchVulnerabilities() {
+            const searchTerm = document.getElementById("search-input").value.trim();
+            loadVulnerabilities(1, searchTerm);
+        }
+        
+        function showMessage(message, type) {
+            const messageArea = document.getElementById("message-area");
+            messageArea.textContent = message; // Use textContent for safety
+            messageArea.className = `message ${type}`;
+            messageArea.style.display = "block";
+            
+            setTimeout(() => {
+                messageArea.style.display = "none";
+            }, 5000);
+        }
+
+        // 쿠키 가져오기 함수
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        // 로그아웃 함수
+        async function logout() {
+            try {
+                await fetch('/logout');
+            } catch (error) {
+                console.error('Logout request failed:', error);
+            } finally {
+                // Clear session-related cookies
+                document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                // Add any other session cookies if they exist
+                checkLoginStatus(); // Update UI
+                window.location.href = "index.html"; // Redirect to home
+            }
+        }
+
+        // 로그인 상태 확인 및 UI 업데이트
+        function checkLoginStatus() {
+            const userId = getCookie("user_id");
+            const userStatusDiv = document.getElementById("user-status");
+            if (userId) {
+                // 사용자 ID를 안전하게 표시 (XSS 방지)
+                const welcomeSpan = document.createElement('span');
+                welcomeSpan.textContent = `사용자: ${escapeHTML(userId)} `;
+                
+                const logoutLink = document.createElement('a');
+                logoutLink.href = "#";
+                logoutLink.textContent = "로그아웃";
+                logoutLink.onclick = function(event) {
+                    event.preventDefault();
+                    logout();
+                };
+                
+                userStatusDiv.innerHTML = ''; // Clear existing content
+                userStatusDiv.appendChild(welcomeSpan);
+                userStatusDiv.appendChild(logoutLink);
+            } else {
+                userStatusDiv.innerHTML = `<a href="login.html">로그인</a> | <a href="register.html">회원가입</a>`;
+            }
+        }
+
+        // 페이지 로드 시 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            loadVulnerabilities(); // Initial load
+
+            document.getElementById("search-button").addEventListener("click", searchVulnerabilities);
+            document.getElementById("search-input").addEventListener("keyup", function(event) {
+                if (event.key === "Enter") {
+                    searchVulnerabilities();
+                }
+            });
+
+            document.getElementById("prev-page").addEventListener("click", () => {
+                if (currentPage > 1) {
+                    loadVulnerabilities(currentPage - 1, currentSearchTerm);
+                }
+            });
+
+            document.getElementById("next-page").addEventListener("click", () => {
+                // We don't know totalPages here directly without an extra calculation from total_count and itemsPerPage
+                // The button's disabled state should handle this, but a check could be added if needed
+                loadVulnerabilities(currentPage + 1, currentSearchTerm);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -79,6 +79,7 @@
             <a href="index.html">홈</a>
             <a href="myinfo.html" id="myinfo-link" style="display: none;">내 정보</a>
 			<a href="board.html" id="board" style="display: none;" >게시판</a>
+            <a href="vulnerabilities.html" id="vulnerabilities-link" style="display: none;">취약점 게시판</a>
 			<a href="xml_parser.html" id="xml" style="display: none;">XML 파서</a>
 			<a href="redirect.html" id="redirect" style="display: none;">URL 리다이렉션</a>
 			<a href="ssrf_test.html" id="ssrf" style="display: none;">SSRF 테스트</a>
@@ -136,6 +137,7 @@
         const userId = getCookie("user_id");
         const myInfoLink = document.getElementById("myinfo-link");
         const board = document.getElementById("board");
+        const vulnerabilitiesLink = document.getElementById("vulnerabilities-link");
         const xml = document.getElementById("xml");
         const redirect = document.getElementById("redirect");
 		const ssrf = document.getElementById("ssrf");
@@ -145,6 +147,7 @@
             // 로그인 상태 - 내 정보 메뉴 표시, 회원가입/비밀번호 초기화/로그인 숨김
             myInfoLink.style.display = "inline";
 			board.style.display = "inline";
+            vulnerabilitiesLink.style.display = "inline";
 			xml.style.display = "inline";
 			redirect.style.display = "inline";
 			ssrf.style.display = "inline";

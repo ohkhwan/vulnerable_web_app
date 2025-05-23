@@ -26,7 +26,9 @@ if not os.path.exists(DB_NAME):
 def get_db():
     """Opens a new database connection if there is none yet for the current application context."""
     if 'db' not in g:
-        g.db = sqlite3.connect(DB_NAME)
+        # Use database from app config if available (for testing), else use default
+        db_path = app.config.get('DATABASE', DB_NAME)
+        g.db = sqlite3.connect(db_path)
         g.db.row_factory = sqlite3.Row # Allows accessing columns by name
     return g.db
 
@@ -111,6 +113,11 @@ def ssrf_test_page():
 def board_page():
     """Serves the board.html page with the list of posts."""
     return render_template('board.html')
+
+@app.route('/vulnerabilities.html')
+def vulnerability_board_page():
+    """Serves the vulnerabilities.html page."""
+    return render_template('vulnerabilities.html')
 
 @app.route('/write_post.html')
 def write_post_page():
@@ -542,6 +549,80 @@ def create_post():
         print(f"Database error during post creation: {e}")
         db.rollback()
         return jsonify({'success': False, 'message': '게시글 작성 중 오류가 발생했습니다.'}), 500
+
+@app.route('/api/vulnerabilities', methods=['GET'])
+def get_vulnerabilities():
+    """Fetches vulnerabilities with pagination and search."""
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+        search_keyword = request.args.get('search', '').strip()
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Invalid page or per_page parameter.'}), 400
+
+    if page < 1: page = 1
+    if per_page < 1: per_page = 1
+    if per_page > 100: per_page = 100 # Max per_page
+    offset = (page - 1) * per_page
+
+    db = get_db()
+    cursor = db.cursor()
+    
+    base_query = "FROM vulnerabilities"
+    count_query = "SELECT COUNT(*) "
+    data_query = "SELECT cve_id, description, published_date, last_modified_date, severity, cvss_v3_score, source_identifier "
+    
+    params = []
+    where_clauses = []
+
+    if search_keyword:
+        # Prioritize CVE ID exact match, then description partial match
+        # This logic might need adjustment based on how users are expected to search
+        # For now, let's assume search can be for CVE ID or in description
+        where_clauses.append("(cve_id = ? OR description LIKE ?)")
+        params.extend([search_keyword, f'%{search_keyword}%'])
+
+    if where_clauses:
+        base_query += " WHERE " + " AND ".join(where_clauses)
+        
+    count_query += base_query
+    data_query += base_query + " ORDER BY last_modified_date DESC LIMIT ? OFFSET ?"
+    params_data = params + [per_page, offset]
+
+    try:
+        cursor.execute(count_query, params)
+        total_vulnerabilities_count = cursor.fetchone()[0]
+        
+        cursor.execute(data_query, params_data)
+        vulnerabilities_rows = cursor.fetchall()
+        
+        vulnerabilities_data = []
+        for row in vulnerabilities_rows:
+            vulnerabilities_data.append({
+                'cve_id': row['cve_id'],
+                'description': row['description'],
+                'published_date': row['published_date'],
+                'last_modified_date': row['last_modified_date'],
+                'severity': row['severity'],
+                'cvss_v3_score': row['cvss_v3_score'],
+                'source_identifier': row['source_identifier']
+            })
+            
+        return jsonify({
+            'success': True, 
+            'vulnerabilities': vulnerabilities_data,
+            'total_count': total_vulnerabilities_count,
+            'page': page,
+            'per_page': per_page
+        }), 200
+        
+    except sqlite3.Error as e:
+        print(f"Database error during vulnerability retrieval: {e}")
+        return jsonify({'success': False, 'message': '취약점 정보를 불러오는 중 오류가 발생했습니다.'}), 500
+    except Exception as e:
+        print(f"An unexpected error occurred during vulnerability retrieval: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': '알 수 없는 오류가 발생했습니다.'}), 500
 
 @app.route('/reset_password', methods=['POST'])
 def reset_password():

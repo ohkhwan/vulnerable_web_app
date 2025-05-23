@@ -27,6 +27,18 @@ CREATE TABLE IF NOT EXISTS board (
 );
 """
 
+CREATE_VULNERABILITIES_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS vulnerabilities (
+    cve_id TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    published_date TEXT,
+    last_modified_date TEXT,
+    severity TEXT,
+    cvss_v3_score REAL,
+    source_identifier TEXT
+);
+"""
+
 def create_database():
     """Creates the SQLite database and the users table if they don't exist."""
     conn = None
@@ -35,8 +47,10 @@ def create_database():
         cursor = conn.cursor()
         cursor.execute(CREATE_USERS_TABLE_SQL)
         cursor.execute(CREATE_BOARD_TABLE_SQL)
+        cursor.execute(CREATE_VULNERABILITIES_TABLE_SQL)
         conn.commit()
         print(f"Database '{DB_NAME}' and table 'users' created successfully (or already exist).")
+        print(f"Table 'vulnerabilities' created successfully (or already exists).")
 
         # Optional: Add a default admin user if the table was just created and is empty
         cursor.execute("SELECT COUNT(*) FROM users")
