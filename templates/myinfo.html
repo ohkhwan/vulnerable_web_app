@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 정보 - 취약한 웹 애플리케이션</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .nav {
+            margin-bottom: 20px;
+        }
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .user-info {
+            margin-top: 20px;
+        }
+        .info-item {
+            margin-bottom: 10px;
+        }
+        .info-label {
+            font-weight: bold;
+        }
+        .profile-section {
+            margin-top: 30px;
+        }
+        #user-profile {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>취약한 웹 애플리케이션</h1>
+    <div class="nav">
+        <a href="index.html">홈</a>
+        <a href="myinfo.html">내 정보</a>
+		<a href="board.html">게시판</a>
+        <a href="xml_parser.html">XML 파서</a>
+        <a href="redirect.html">URL 리다이렉션</a>
+        <a href="#" id="logout-link" style="display: none;" onclick="logout()">로그아웃</a>
+    </div>
+
+    <div class="container">
+        <h2>내 정보</h2>
+        <div id="login-required" style="display: none;">
+            <p>이 페이지를 보려면 로그인이 필요합니다.</p>
+            <a href="login.html">로그인 페이지로 이동하기</a>
+        </div>
+
+        <div id="user-info" style="display: none;">
+            <div class="profile-section">
+                <h3>사용자 프로필</h3>
+                <div id="user-profile"></div>
+            </div>
+
+            <div class="profile-section">
+                <h3>비밀번호 변경</h3>
+                <div>
+                    <label for="current_password">현재 비밀번호:</label>
+                    <input type="password" id="current_password" name="current_password" required>
+                </div>
+                <div>
+                    <label for="new_password">새 비밀번호:</label>
+                    <input type="password" id="new_password" name="new_password" required>
+                </div>
+                <div>
+                    <label for="confirm_new_password">새 비밀번호 확인:</label>
+                    <input type="password" id="confirm_new_password" name="confirm_new_password" required>
+                </div>
+                <button onclick="changePassword()">비밀번호 변경</button>
+            </div>
+
+            <div class="profile-section">
+                <h3>다른 사용자 정보 조회</h3>
+                <div>
+                    <label for="other_user_id">조회할 사용자 아이디:</label>
+                    <input type="text" id="other_user_id" name="other_user_id">
+                </div>
+                <button onclick="viewOtherUserInfo()">조회하기</button>
+                <div id="other-user-profile" class="user-info" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div id="message" class="message" style="display: none;"></div>
+    </div>
+
+    <script>
+        // 쿠키 가져오기 함수
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // 로그인 상태 확인
+        function checkLoginStatus() {
+            const userId = getCookie("user_id");
+            const loginRequiredDiv = document.getElementById("login-required");
+            const userInfoDiv = document.getElementById("user-info");
+            const logoutLink = document.getElementById("logout-link");
+
+            if (userId) {
+                // 로그인된 경우
+                loginRequiredDiv.style.display = "none";
+                userInfoDiv.style.display = "block";
+                logoutLink.style.display = "inline";
+                
+                // 사용자 정보 가져오기
+                fetchUserInfo();
+            } else {
+                // 로그인되지 않은 경우
+                loginRequiredDiv.style.display = "block";
+                userInfoDiv.style.display = "none";
+                logoutLink.style.display = "none";
+            }
+        }
+
+        // 로그아웃 함수
+        function logout() {
+            // Call the backend logout endpoint
+            fetch('/logout', {
+                method: 'GET' // Or 'POST', depends on your app.py route setup
+            })
+            .then(response => {
+                // Regardless of backend success, clear client-side cookie and redirect
+                document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = "index.html";
+            })
+            .catch(error => {
+                console.error('Logout failed:', error);
+                // Even if fetch fails, try to clear cookie and redirect
+                document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = "index.html";
+            });
+        }
+
+        // 페이지 로드 시 실행
+        window.onload = checkLoginStatus;
+
+        // --- Functions interacting with the Backend ---
+
+        // 사용자 정보 가져와서 표시
+        function fetchUserInfo() {
+            const messageDiv = document.getElementById("message");
+            messageDiv.style.display = "none"; // Hide previous messages
+
+            fetch('/user_info', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // If response is not ok, check if it's due to not logged in (401)
+                    if (response.status === 401) {
+                        // Backend says not logged in, clear client-side cookie and redirect
+                        document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                        window.location.href = "login.html"; // Redirect to login page
+                        return Promise.reject("Not logged in"); // Stop further processing
+                    }
+                    // Handle other HTTP errors
+                    return response.json().then(data => {
+                        const error = new Error(data.message || `HTTP error! status: ${response.status}`);
+                        return Promise.reject(error);
+                    });
+                }
+                return response.json(); // Parse JSON response from server
+            })
+            .then(data => {
+                if (data.success && data.user) {
+                    // Display user data received from the backend
+                    const userProfileDiv = document.getElementById("user-profile");
+                    // WARNING: XSS Vulnerability Simulation - Directly inserting user.name
+                    // Sanitize/escape user.name in real applications!
+                    userProfileDiv.innerHTML = `
+                        <div class="info-item">
+                            <span class="info-label">아이디: </span> ${data.user.id}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">이름:</span> ${data.user.name}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">주민등록번호:</span> ${data.user.ssn}
+                        </div>
+                    `;
+                    messageDiv.style.display = "none"; // Hide any previous messages
+                } else {
+                    // Should not happen if response.ok is true, but handle defensively
+                    messageDiv.innerHTML = data.message || "사용자 정보를 가져오는데 실패했습니다.";
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                }
+            })
+            .catch((error) => {
+                console.error('Failed to fetch user info:', error);
+                if (error !== "Not logged in") { // Avoid showing message if redirecting
+                    const displayMessage = error.message || '사용자 정보를 가져오는 중 오류가 발생했습니다.';
+                    messageDiv.innerHTML = `오류: ${displayMessage}`;
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                }
+            });
+        }
+
+        // 비밀번호 변경
+        function changePassword() {
+            const currentPassword = document.getElementById("current_password").value;
+            const newPassword = document.getElementById("new_password").value;
+            const confirmNewPassword = document.getElementById("confirm_new_password").value;
+
+            const messageDiv = document.getElementById("message");
+            messageDiv.style.display = "none"; // Hide previous messages
+
+            if (!currentPassword || !newPassword || !confirmNewPassword) {
+                messageDiv.innerHTML = "모든 비밀번호 필드를 입력해주세요.";
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                messageDiv.innerHTML = "새 비밀번호가 일치하지 않습니다.";
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+                return;
+            }
+
+            // WARNING: Sending plain current and new passwords! Use HTTPS and hashing in real apps.
+            const passwordData = {
+                current_password: currentPassword,
+                new_password: newPassword
+            };
+
+            fetch('/update_password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(passwordData),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // If response is not ok, check if it's due to not logged in (401)
+                    if (response.status === 401) {
+                        document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                        window.location.href = "login.html"; // Redirect to login page
+                        return Promise.reject("Not logged in");
+                    }
+                    return response.json().then(data => {
+                        const error = new Error(data.message || `HTTP error! status: ${response.status}`);
+                        return Promise.reject(error);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    messageDiv.innerHTML = data.message;
+                    messageDiv.className = "message success";
+                    messageDiv.style.display = "block";
+
+                    // Clear password fields on success
+                    document.getElementById("current_password").value = "";
+                    document.getElementById("new_password").value = "";
+                    document.getElementById("confirm_new_password").value = "";
+                } else {
+                    messageDiv.innerHTML = data.message || "비밀번호 변경에 실패했습니다.";
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                }
+            })
+            .catch((error) => {
+                console.error('Failed to change password:', error);
+                if (error !== "Not logged in") {
+                    const displayMessage = error.message || '비밀번호 변경 중 오류가 발생했습니다.';
+                    messageDiv.innerHTML = `오류: ${displayMessage}`;
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                }
+            });
+        }
+
+        // 다른 사용자 정보 조회 - 취약한 접근 제어 시뮬레이션 (서버에서도 처리)
+        function viewOtherUserInfo() {
+            const otherUserId = document.getElementById("other_user_id").value;
+            const otherUserProfileDiv = document.getElementById("other-user-profile");
+            const messageDiv = document.getElementById("message");
+
+            otherUserProfileDiv.style.display = "none"; // Hide previous other user info
+            messageDiv.style.display = "none"; // Hide previous messages
+
+            if (!otherUserId) {
+                messageDiv.innerHTML = "조회할 사용자 아이디를 입력해주세요.";
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+                return;
+            }
+
+            // Call backend endpoint to view other user info
+            // Now only admin can access this feature
+            fetch(`/user_info_other/${encodeURIComponent(otherUserId)}`, { // Use encodeURIComponent for safety in URL
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                        window.location.href = "login.html"; // Redirect to login page
+                        return Promise.reject("Not logged in");
+                    }
+                    if (response.status === 403) {
+                        // Forbidden - Not admin
+                        return response.json().then(data => {
+                            const error = new Error(data.message || "관리자만 다른 사용자의 정보를 조회할 수 있습니다.");
+                            return Promise.reject(error);
+                        });
+                    }
+                    // Handle 404 Not Found or other errors from backend
+                    return response.json().then(data => {
+                        const error = new Error(data.message || `HTTP error! status: ${response.status}`);
+                        return Promise.reject(error);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.user) {
+                    // Display other user data received from the backend
+                    // WARNING: XSS Vulnerability Simulation - Directly inserting user.name
+                    // Sanitize/escape user.name in real applications!
+                    otherUserProfileDiv.innerHTML = `
+                        <h4>${data.user.name}님의 정보</h4>
+                        <div class="info-item">
+                            <span class="info-label">아이디:</span> ${data.user.id}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">이름:</span> ${data.user.name}
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">주민등록번호:</span> ${data.user.ssn}
+                        </div>
+                    `;
+                    otherUserProfileDiv.style.display = "block";
+                    messageDiv.style.display = "none";
+                } else {
+                    // This branch might be reached if success is false but status was 200 (less common)
+                    messageDiv.innerHTML = data.message || "사용자 정보를 가져오는데 실패했습니다.";
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                    otherUserProfileDiv.style.display = "none";
+                }
+            })
+            .catch((error) => {
+                console.error('Failed to fetch other user info:', error);
+                if (error !== "Not logged in") {
+                    const displayMessage = error.message || '다른 사용자 정보를 가져오는 중 오류가 발생했습니다.';
+                    messageDiv.innerHTML = `오류: ${displayMessage}`;
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                }
+                otherUserProfileDiv.style.display = "none";
+            });
+        }
+    </script>
+</body>
+</html>

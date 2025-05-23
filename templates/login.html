@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - 취약한 웹 애플리케이션</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .nav {
+            margin-bottom: 20px;
+        }
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>취약한 웹 애플리케이션</h1>
+    <div class="nav">
+        <a href="index.html">홈</a>
+        <a href="login.html">로그인</a>
+        <a href="register.html">회원가입</a>
+        <a href="reset_password.html">비밀번호 초기화</a>
+    </div>
+
+    <div class="container">
+        <h2>로그인</h2>
+        <div id="login-form">
+            <div>
+                <label for="user_id">아이디:</label>
+                <input type="text" id="user_id" name="user_id" required>
+            </div>
+            <div>
+                <label for="password">비밀번호:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button onclick="login()">로그인</button>
+        </div>
+        <div id="message" class="message" style="display: none;"></div>
+    </div>
+
+    <script>
+  
+
+        // --- 서버와 통신하는 로그인 함수 ---
+        function login() {
+            const userId = document.getElementById('user_id').value;
+            const password = document.getElementById('password').value;
+            const messageDiv = document.getElementById('message');
+
+            messageDiv.style.display = "none"; // 이전 메시지 숨기기
+
+            if (!userId || !password) {
+                messageDiv.innerHTML = "아이디와 비밀번호를 입력해주세요.";
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+                return;
+            }
+
+            // 서버의 /login 엔드포인트로 데이터 전송
+            fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ user_id: userId, password: password }),
+            })
+            .then(response => {
+                // HTTP 상태 코드에 따라 성공/실패 처리
+                if (!response.ok) {
+                    // 서버에서 온 오류 메시지 처리
+                    return response.json().then(data => {
+                        const error = new Error(data.message || `HTTP error! status: ${response.status}`);
+                        error.response = response; // 원본 응답 첨부
+                        return Promise.reject(error);
+                    });
+                }
+                return response.json(); // 서버에서 온 JSON 응답 파싱
+            })
+            .then(data => {
+                // 서버 응답 처리
+                if (data.success) {
+                    messageDiv.innerHTML = data.message;
+                    messageDiv.className = "message success";
+                    messageDiv.style.display = "block";
+
+                    // 서버에서 이미 세션과 HttpOnly 쿠키를 설정했을 것임
+                    // 클라이언트 측에서도 user_id 쿠키를 설정 (기존 HTML 호환성 또는 JS에서의 접근을 위해 - 취약할 수 있음)
+                    document.cookie = `user_id=${userId}; path=/`; // WARNING: Storing user ID in client-side accessible cookie
+
+                    // 로그인 성공 후 myinfo 페이지로 리디렉션
+                    setTimeout(() => {
+                        window.location.href = "index.html";
+                    }, 1500); // 잠시 메시지를 보여준 후 이동
+                } else {
+                    // 서버에서 온 실패 메시지 사용
+                    messageDiv.innerHTML = data.message || "로그인에 실패했습니다.";
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                }
+            })
+            .catch((error) => {
+                // 네트워크 오류 또는 서버에서 reject한 오류 처리
+                console.error('Login failed:', error);
+                const displayMessage = error.message || '로그인 중 오류가 발생했습니다.';
+                messageDiv.innerHTML = `오류: ${displayMessage}`;
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+            });
+        }
+    </script>
+	
+	<script>
+    // 쿠키 가져오기 함수
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    // 페이지 로드 시 로그인 상태 확인 및 네비게이션 업데이트
+    window.onload = function() {
+        const userId = getCookie("user_id");
+        const navDiv = document.querySelector(".nav");
+
+        if (userId) {
+            // 로그인된 경우 myinfo.html로 리디렉션
+            
+        } else {
+            // 로그인되지 않은 경우 현재 페이지 유지 및 네비게이션 업데이트
+            // (네비게이션은 HTML에 이미 정의되어 있으므로, 로그인 상태에 따라 링크를 추가/제거하는 로직은 myinfo.html에서만 필요합니다)
+            // 이 페이지들(index, login, register, reset_password)에서는 로그아웃 상태의 네비게이션을 유지합니다.
+            // 따라서 별도의 네비게이션 업데이트 코드는 필요 없습니다.
+            // 만약 네비게이션을 동적으로 변경하고 싶다면 아래 주석을 해제하고 사용하세요.
+            /*
+            navDiv.innerHTML = `
+                <a href="index.html">홈</a>
+                <a href="login.html">로그인</a>
+                <a href="register.html">회원가입</a>
+                <a href="reset_password.html">비밀번호 초기화</a>
+            `;
+            */
+        }
+    };
+</script>
+
+
+
+</body>
+</html>

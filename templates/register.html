@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원가입 - 취약한 웹 애플리케이션</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .nav {
+            margin-bottom: 20px;
+        }
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>취약한 웹 애플리케이션</h1>
+    <div class="nav">
+        <a href="index.html">홈</a>
+        <a href="login.html">로그인</a>
+        <a href="register.html">회원가입</a>
+        <a href="reset_password.html">비밀번호 초기화</a>
+    </div>
+
+    <div class="container">
+        <h2>회원가입</h2>
+        <div id="register-form">
+            <div>
+                <label for="user_id">아이디:</label>
+                <input type="text" id="user_id" name="user_id" required>
+            </div>
+            <div>
+                <label for="password">비밀번호:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div>
+                <label for="confirm_password">비밀번호 확인:</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+            </div>
+            <div>
+                <label for="name">이름:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div>
+                <label for="ssn">주민등록번호:</label>
+                <input type="text" id="ssn" name="ssn" placeholder="예: 901231-1234567" required>
+            </div>
+            <button onclick="register()">회원가입</button>
+        </div>
+        <div id="message" class="message" style="display: none;"></div>
+    </div>
+
+    <script>
+        // 회원가입 함수 - XSS 취약점을 시뮬레이션
+        function register() {
+            const userId = document.getElementById('user_id').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            const name = document.getElementById('name').value;
+            const ssn = document.getElementById('ssn').value;
+
+            const messageDiv = document.getElementById('message');
+            messageDiv.style.display = "none"; // Hide previous messages
+
+            // 간단한 클라이언트 측 유효성 검사
+            if (!userId || !password || !confirmPassword || !name || !ssn) {
+                messageDiv.innerHTML = "모든 필드를 입력해주세요.";
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                messageDiv.innerHTML = "비밀번호가 일치하지 않습니다.";
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+                return;
+            }
+
+            // 서버로 보낼 데이터 객체 생성
+            const registrationData = {
+                user_id: userId,
+                password: password, // WARNING: Sending plain password! Use HTTPS and hashing in real apps.
+                name: name,
+                ssn: ssn // WARNING: Sending sensitive data! Use HTTPS and encryption/tokenization in real apps.
+            };
+
+            // Fetch API를 사용하여 서버로 데이터 전송
+            fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(registrationData),
+            })
+            .then(response => {
+                // HTTP 상태 코드에 따라 성공/실패 처리
+                if (!response.ok) {
+                    // Handle HTTP errors (e.g., 400, 409, 500)
+                    return response.json().then(data => {
+                        const error = new Error(data.message || `HTTP error! status: ${response.status}`);
+                        error.response = response; // Attach the original response
+                        return Promise.reject(error);
+                    });
+                }
+                return response.json(); // Parse JSON response from server
+            })
+            .then(data => {
+                // 서버 응답 처리
+                if (data.success) {
+                    // 서버에서 온 성공 메시지 사용 (XSS 취약점 시뮬레이션)
+                    messageDiv.innerHTML = data.message; // This line is the XSS sink if data.message is not escaped
+                    messageDiv.className = "message success";
+                    messageDiv.style.display = "block";
+
+                    // 잠시 후 로그인 페이지로 이동
+                    setTimeout(() => {
+                        window.location.href = "login.html"; // Ensure you have a login.html file
+                    }, 2000);
+
+                } else {
+                    // 서버에서 온 실패 메시지 사용
+                    messageDiv.innerHTML = data.message;
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                }
+            })
+            .catch((error) => {
+                // 네트워크 오류 또는 서버에서 reject한 오류 처리
+                console.error('Registration failed:', error);
+                const displayMessage = error.message || '회원가입 중 오류가 발생했습니다.';
+                messageDiv.innerHTML = `오류: ${displayMessage}`;
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+            });
+        }
+
+        // 쿠키 가져오기 함수
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // 페이지 로드 시 로그인 상태 확인 및 리디렉션
+        window.onload = function() {
+            const userId = getCookie("user_id");
+            if (userId) {
+                // If logged in, redirect to myinfo.html
+                window.location.href = "myinfo.html";
+            } else {
+                // If not logged in, show the current page and update navigation
+                const navDiv = document.querySelector(".nav");
+                navDiv.innerHTML = `
+                    <a href="index.html">홈</a>
+                    <a href="login.html">로그인</a>
+                    <a href="register.html">회원가입</a>
+                    <a href="reset_password.html">비밀번호 초기화</a>
+                `;
+            }
+        };
+    </script>
+</body>
+</html>

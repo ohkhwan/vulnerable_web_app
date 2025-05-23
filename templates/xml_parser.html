@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XML 파서 - 취약한 웹 애플리케이션</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .nav {
+            margin-bottom: 20px;
+        }
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .xml-output {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>취약한 웹 애플리케이션</h1>
+    <div class="nav">
+        <a href="index.html">홈</a>
+        <a href="myinfo.html">내 정보</a>
+        <a href="board.html">게시판</a>
+        <a href="xml_parser.html">XML 파서</a>
+        <a href="redirect.html">URL 리다이렉션</a>
+    </div>
+    
+    <div class="container">
+        <h2>XML 파서</h2>
+        <p>이 페이지는 XML을 파싱하여 내용을 보여줍니다. XML External Entity (XXE) 취약점을 테스트해볼 수 있습니다.</p>
+        
+        <div>
+            <label for="xml-input">XML 입력:</label>
+            <textarea id="xml-input" placeholder="이곳에 XML을 입력하세요..."><?xml version="1.0" encoding="UTF-8"?>
+<user>
+    <id>user1</id>
+    <name>홍길동</name>
+    <role>일반 사용자</role>
+</user></textarea>
+        </div>
+        
+        <button onclick="parseXML()">XML 파싱하기</button>
+        
+        <div id="message" class="message" style="display: none;"></div>
+        
+        <div id="xml-output" class="xml-output" style="display: none;">
+            <h3>파싱 결과:</h3>
+            <pre id="parsed-output"></pre>
+        </div>
+
+        <div class="example-container">
+            <h3>XXE 취약점 테스트 예제:</h3>
+            <pre><?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE foo [
+    <!ENTITY xxe SYSTEM "file:///c:/windows/win.ini">
+]>
+<user>
+    <id>user1</id>
+    <name>홍길동 &xxe;</name>
+    <role>일반 사용자</role>
+</user></pre>
+        </div>
+    </div>
+
+    <script>
+        // XML 파싱 함수 - XXE 취약점이 있음
+        function parseXML() {
+            const xmlInput = document.getElementById('xml-input').value;
+            const messageDiv = document.getElementById('message');
+            const outputDiv = document.getElementById('xml-output');
+            const parsedOutputPre = document.getElementById('parsed-output');
+            
+            try {
+                // XXE 취약점이 있는 XML 파서 설정
+                // DOMParser는 브라우저에서 XXE 취약점이 기본적으로 막혀 있지만,
+                // 서버 측에서는 취약할 수 있음을 시뮬레이션
+                const parser = new DOMParser();
+                
+                // XXE 취약점 시뮬레이션 (실제로는 서버에서 처리되어야 함)
+                // 브라우저 제한으로 인해 client-side에서는 XXE가 동작하지 않을 수 있음
+                const xmlDoc = parser.parseFromString(xmlInput, "text/xml");
+                
+                // 파싱된 XML 처리
+                if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+                    throw new Error("XML 파싱 오류가 발생했습니다.");
+                }
+                
+                // XML 내용 추출
+                const result = {};
+                const rootElement = xmlDoc.documentElement;
+                
+                // 모든 자식 요소를 순회하며 이름과 값을 추출
+                for (let i = 0; i < rootElement.children.length; i++) {
+                    const child = rootElement.children[i];
+                    result[child.tagName] = child.textContent;
+                }
+                
+                // 결과 표시
+                outputDiv.style.display = "block";
+                parsedOutputPre.textContent = JSON.stringify(result, null, 2);
+                
+                // 시뮬레이션된 XXE 취약점 메시지
+                if (xmlInput.includes("<!DOCTYPE") && xmlInput.includes("SYSTEM")) {
+                    messageDiv.innerHTML = "XXE 취약점 발견! 외부 엔티티가 로드되었습니다. 실제 서버 환경에서는 시스템 파일이 노출될 수 있습니다.";
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                } else {
+                    messageDiv.innerHTML = "XML이 성공적으로 파싱되었습니다.";
+                    messageDiv.className = "message success";
+                    messageDiv.style.display = "block";
+                }
+            } catch (error) {
+                outputDiv.style.display = "none";
+                messageDiv.innerHTML = "오류: " + error.message;
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+            }
+        }
+
+        // 현재 로그인 상태 확인
+        function checkLoginStatus() {
+            const userId = getCookie("user_id");
+            if (userId) {
+                document.querySelector(".nav").innerHTML += `<span style="float: right;">사용자: ${userId} <a href="#" onclick="logout()">로그아웃</a></span>`;
+            }
+        }
+
+        // 쿠키 가져오기 함수
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // 로그아웃 함수
+        function logout() {
+            document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            window.location.href = "index.html";
+        }
+
+        // 페이지 로드 시 로그인 상태 확인
+        window.onload = checkLoginStatus;
+    </script>
+</body>
+</html>

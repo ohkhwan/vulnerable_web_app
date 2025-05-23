@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게시판 - 취약한 웹 애플리케이션</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input, select, textarea {
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+            width: 100%;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .nav {
+            margin-bottom: 20px;
+        }
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .board-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .board-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .board-table th, .board-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .board-table th {
+            background-color: #f2f2f2;
+        }
+        .board-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .search-box {
+            display: flex;
+            margin: 20px 0;
+        }
+        .search-box input {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .no-posts {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .write-form {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>취약한 웹 애플리케이션</h1>
+    <div class="nav">
+        <a href="index.html">홈</a>          
+        <a href="myinfo.html">내 정보</a>
+        <a href="board.html">게시판</a>
+        <a href="xml_parser.html">XML 파서</a>
+        <a href="redirect.html">URL 리다이렉션</a>
+    </div>
+    
+    <div class="container">
+        <div class="board-header">
+            <h2>게시판</h2>
+            <button id="write-btn" onclick="toggleWriteForm()">글 작성</button>
+        </div>
+        
+        <!-- CSRF에 취약한 글 작성 폼 -->
+        <div id="write-form" class="write-form" style="display: none;">
+            <h3>새 글 작성하기</h3>
+            <!-- CSRF 토큰이 없는 폼 (취약점 발생) -->
+            <form id="post-form" onsubmit="submitPost(event)">
+                <div class="form-group">
+                    <label for="title">제목</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label for="content">내용</label>
+                    <textarea id="content" name="content" rows="5" required></textarea>
+                </div>
+                <button type="submit">등록</button>
+                <button type="button" onclick="toggleWriteForm()">취소</button>
+            </form>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="검색어를 입력하세요">
+            <button onclick="searchPosts()">검색</button>
+        </div>
+        
+        <div id="message" class="message" style="display: none;"></div>
+        
+        <table class="board-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">번호</th>
+                    <th style="width: 50%;">제목</th>
+                    <th style="width: 15%;">작성자</th>
+                    <th style="width: 25%;">작성일</th>
+                </tr>
+            </thead>
+            <tbody id="posts-body">
+                <!-- 게시글 목록이 여기에 동적으로 로드됩니다 -->
+            </tbody>
+        </table>
+        <div id="no-posts" class="no-posts" style="display: none;">
+            게시글이 없습니다.
+        </div>
+    </div>
+
+    <script>
+        // HTML 특수문자 이스케이프 함수(에러 테스트를 위해 주석 처리)
+        /*
+        function escapeHTML(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        */
+        
+        // 일부러 에러 유발을 위해 문제가 있는 이스케이프 함수
+        function escapeHTML(text) {
+            if (!text) return '';
+            try {
+                // 의도적으로 에러 발생 가능성이 있는 코드
+                if (text.includes('<script>')) {
+                    throw new Error("XSS 공격 감지!");
+                }
+                return text;
+            } catch (error) {
+                console.error("escapeHTML 함수 오류:", error);
+                return text; // 원본 텍스트 반환 (XSS 취약점)
+            }
+        }
+        
+        // 글 작성 폼 토글
+        function toggleWriteForm() {
+            const writeForm = document.getElementById("write-form");
+            if (writeForm.style.display === "none") {
+                writeForm.style.display = "block";
+            } else {
+                writeForm.style.display = "none";
+            }
+        }
+        
+        // 글 제출 처리 (CSRF 취약점 있음)
+        function submitPost(event) {
+            event.preventDefault();
+            
+            const title = document.getElementById("title").value;
+            const content = document.getElementById("content").value;
+            const userId = getCookie("user_id") || "anonymous"; // 사용자 ID가 없으면 anonymous로 설정
+            
+            // CSRF 취약점: Referer 검사 없음, 토큰 검증 없음
+            fetch('/api/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: title,
+                    content: content,
+                    author_id: userId
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || `서버 오류! 상태 코드: ${response.status}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showMessage("게시글이 성공적으로 등록되었습니다.", "success");
+                    document.getElementById("post-form").reset();
+                    toggleWriteForm();
+                    loadPosts(); // 게시글 목록 새로고침
+                } else {
+                    showMessage(`오류: ${data.message || '알 수 없는 오류가 발생했습니다.'}`, "error");
+                }
+            })
+            .catch(error => {
+                console.error('게시글 등록 실패:', error);
+                showMessage(`오류: ${error.message || '게시글 등록 중 오류가 발생했습니다.'}`, "error");
+                
+                // 일부러 DB 에러를 시뮬레이션
+                if (Math.random() > 0.5) {
+                    showMessage("DB 오류: 데이터베이스 연결에 실패했습니다. SQL 오류 코드: ORA-00001", "error");
+                } else {
+                    showMessage("서버 오류: 내부 서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.", "error");
+                }
+            });
+        }
+        
+        // 메시지 표시
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById("message");
+            messageDiv.innerHTML = message; // innerHTML 사용 (XSS 취약점)
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = "block";
+            
+            // 5초 후 메시지 숨기기
+            setTimeout(() => {
+                messageDiv.style.display = "none";
+            }, 5000);
+        }
+        
+        // 게시글 목록 불러오기 (에러 발생 가능성 추가)
+        function loadPosts(searchKeyword = '') {
+            const postsBody = document.getElementById("posts-body");
+            const noPostsDiv = document.getElementById("no-posts");
+            
+                  
+            // 검색 파라미터 추가
+            let url = '/api/posts';
+            if (searchKeyword) {
+                url += `?search=${encodeURIComponent(searchKeyword)}`;
+                
+                // SQL 인젝션 취약점 시뮬레이션
+                if (searchKeyword.includes("'") || searchKeyword.includes(";")) {
+                    showMessage("서버 오류: SQL 오류가 발생했습니다. (SQL 오류: ORA-00933: SQL 명령어가 올바르게 종료되지 않았습니다)", "error");
+                    return;
+                }
+            }
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.message || `HTTP 오류! 상태 코드: ${response.status}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    postsBody.innerHTML = ''; // 기존 게시글 목록 초기화
+                    
+                    if (data.success && data.posts && data.posts.length > 0) {
+                        data.posts.forEach(post => {
+                            // 날짜 포맷팅
+                            const date = new Date(post.created_at);
+                            const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                            
+                            // XSS 취약점 - 이스케이프 처리하지 않음
+                            const title = post.title;
+                            const authorName = post.author_name;
+                            
+                            // innerHTML 사용으로 XSS 취약점 발생 가능
+                            postsBody.innerHTML += `
+                                <tr>
+                                    <td>${post.post_id}</td>
+                                    <td><a href="post_detail.html?post_id=${post.post_id}">${title}</a></td>
+                                    <td>${authorName}</td>
+                                    <td>${formattedDate}</td>
+                                </tr>
+                            `;
+                        });
+                        
+                        noPostsDiv.style.display = "none";
+                    } else {
+                        noPostsDiv.style.display = "block";
+                    }
+                })
+                .catch(error => {
+                    console.error('게시글 로드 실패:', error);
+                    showMessage(`오류: ${error.message || '게시글을 불러오는 중 오류가 발생했습니다.'}`, "error");
+                });
+        }
+
+        // 게시글 검색
+        function searchPosts() {
+            const searchKeyword = document.getElementById("search-input").value.trim();
+            
+            // 가끔 서버 에러 시뮬레이션
+            if (Math.random() < 0.15) {
+                showMessage("서버 오류: 요청 처리 중 내부 오류가 발생했습니다. (HTTP 500)", "error");
+                return;
+            }
+            
+            loadPosts(searchKeyword);
+        }
+
+        // 쿠키 가져오기 함수
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // 로그아웃 함수
+        function logout() {
+            fetch('/logout', {
+                method: 'GET'
+            })
+            .then(response => {
+                document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = "index.html";
+            })
+            .catch(error => {
+                console.error('Logout failed:', error);
+                document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = "index.html";
+            });
+        }
+
+        // 로그인 상태 확인
+        function checkLoginStatus() {
+            const userId = getCookie("user_id");
+            if (userId) {
+                // XSS 취약점 - 사용자 입력값 직접 출력
+                document.querySelector(".nav").innerHTML += `<span style="float: right;">사용자: ${userId} <a href="#" onclick="logout()">로그아웃</a></span>`;
+            }
+        }
+
+        // 페이지 로드 시 실행
+        window.onload = function() {
+            checkLoginStatus();
+            loadPosts();
+            
+            // 엔터 키 이벤트 처리
+            document.getElementById("search-input").addEventListener("keyup", function(event) {
+                if (event.key === "Enter") {
+                    searchPosts();
+                }
+            });
+            
+            // 일부러 가끔 콘솔에 에러 로그
+            setTimeout(() => {
+                try {
+                    const randomError = Math.floor(Math.random() * 3);
+                    if (randomError === 0) {
+                        throw new Error("DB 연결 실패: Connection timed out");
+                    } else if (randomError === 1) {
+                        throw new Error("서버 내부 오류: 메모리 할당 실패");
+                    }
+                } catch (e) {
+                    console.error("서버 오류:", e);
+                }
+            }, 2000);
+        };
+    </script>
+</body>
+</html>

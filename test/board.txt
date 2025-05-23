@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게시판 - 취약한 웹 애플리케이션</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .nav {
+            margin-bottom: 20px;
+        }
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .board-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .board-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .board-table th, .board-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .board-table th {
+            background-color: #f2f2f2;
+        }
+        .board-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .search-box {
+            display: flex;
+            margin: 20px 0;
+        }
+        .search-box input {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .no-posts {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>취약한 웹 애플리케이션</h1>
+    <div class="nav">
+        <a href="index.html">홈</a>
+        <a href="login.html">로그인</a>
+        <a href="register.html">회원가입</a>
+        <a href="reset_password.html">비밀번호 초기화</a>
+        <a href="myinfo.html">내 정보</a>
+        <a href="board.html">게시판</a>
+        <a href="xml_parser.html">XML 파서</a>
+        <a href="redirect.html">URL 리다이렉션</a>
+    </div>
+    
+    <div class="container">
+        <div class="board-header">
+            <h2>게시판</h2>
+            <button id="write-btn" onclick="redirectToWritePage()">글 작성</button>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="검색어를 입력하세요">
+            <button onclick="searchPosts()">검색</button>
+        </div>
+        
+        <div id="message" class="message" style="display: none;"></div>
+        
+        <table class="board-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">번호</th>
+                    <th style="width: 50%;">제목</th>
+                    <th style="width: 15%;">작성자</th>
+                    <th style="width: 25%;">작성일</th>
+                </tr>
+            </thead>
+            <tbody id="posts-body">
+                <!-- 게시글 목록이 여기에 동적으로 로드됩니다 -->
+            </tbody>
+        </table>
+        <div id="no-posts" class="no-posts" style="display: none;">
+            게시글이 없습니다.
+        </div>
+    </div>
+
+    <script>
+        // HTML 특수문자 이스케이프 함수 추가
+        function escapeHTML(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+        
+        // 현재 로그인 상태 확인
+        function checkLoginStatus() {
+            const userId = getCookie("user_id");
+            if (userId) {
+                // XSS 취약점 해결 - 쿠키값 이스케이프 처리
+                const safeUserId = escapeHTML(userId);
+                
+				
+            }
+        }
+
+        // 쿠키 가져오기 함수
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // 로그아웃 함수
+        function logout() {
+            fetch('/logout', {
+                method: 'GET'
+            })
+            .then(response => {
+                document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = "index.html";
+            })
+            .catch(error => {
+                console.error('Logout failed:', error);
+                document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href = "index.html";
+            });
+        }
+
+        // 게시글 작성 페이지로 이동
+        function redirectToWritePage() {
+            const userId = getCookie("user_id");
+            if (!userId) {
+                const messageDiv = document.getElementById("message");
+                messageDiv.textContent = "게시글을 작성하려면 로그인이 필요합니다."; // innerHTML 대신 textContent 사용
+                messageDiv.className = "message error";
+                messageDiv.style.display = "block";
+                
+                // 3초 후 로그인 페이지로 이동
+                setTimeout(() => {
+                    window.location.href = "login.html";
+                }, 3000);
+                return;
+            }
+            
+            window.location.href = "write_post.html";
+        }
+
+        // 게시글 목록 불러오기
+        function loadPosts(searchKeyword = '') {
+            const postsBody = document.getElementById("posts-body");
+            const noPostsDiv = document.getElementById("no-posts");
+            const messageDiv = document.getElementById("message");
+            
+            // 검색 파라미터 추가
+            let url = '/api/posts';
+            if (searchKeyword) {
+                url += `?search=${encodeURIComponent(searchKeyword)}`;
+            }
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    postsBody.innerHTML = ''; // 기존 게시글 목록 초기화
+                    
+                    if (data.success && data.posts && data.posts.length > 0) {
+                        data.posts.forEach(post => {
+                            // 날짜 포맷팅
+                            const date = new Date(post.created_at);
+                            const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                            
+                            // XSS 취약점 해결 - 텍스트 데이터 이스케이프 처리
+                            const safeTitle = escapeHTML(post.title);
+                            const safeAuthorName = escapeHTML(post.author_name);
+                            
+                            // DOM 요소 생성 방식으로 변경하여 안전하게 처리
+                            const tr = document.createElement('tr');
+                            
+                            const tdId = document.createElement('td');
+                            tdId.textContent = post.post_id;
+                            tr.appendChild(tdId);
+                            
+                            const tdTitle = document.createElement('td');
+                            const titleLink = document.createElement('a');
+                            titleLink.href = `post_detail.html?id=${post.post_id}`;
+                            titleLink.textContent = safeTitle;
+                            tdTitle.appendChild(titleLink);
+                            tr.appendChild(tdTitle);
+                            
+                            const tdAuthor = document.createElement('td');
+                            tdAuthor.textContent = safeAuthorName;
+                            tr.appendChild(tdAuthor);
+                            
+                            const tdDate = document.createElement('td');
+                            tdDate.textContent = formattedDate;
+                            tr.appendChild(tdDate);
+                            
+                            postsBody.appendChild(tr);
+                        });
+                        
+                        noPostsDiv.style.display = "none";
+                    } else {
+                        noPostsDiv.style.display = "block";
+                    }
+                    
+                    messageDiv.style.display = "none";
+                })
+                .catch(error => {
+                    console.error('Failed to load posts:', error);
+                    // textContent 사용으로 XSS 방지
+                    messageDiv.textContent = `오류: ${error.message || '게시글을 불러오는 중 오류가 발생했습니다.'}`;
+                    messageDiv.className = "message error";
+                    messageDiv.style.display = "block";
+                });
+        }
+
+        // 게시글 검색
+        function searchPosts() {
+            const searchKeyword = document.getElementById("search-input").value.trim();
+            loadPosts(searchKeyword);
+        }
+
+        // 페이지 로드 시 실행
+        window.onload = function() {
+            checkLoginStatus();
+            loadPosts();
+            
+            // 엔터 키 이벤트 처리
+            document.getElementById("search-input").addEventListener("keyup", function(event) {
+                if (event.key === "Enter") {
+                    searchPosts();
+                }
+            });
+        };
+    </script>
+</body>
+</html>

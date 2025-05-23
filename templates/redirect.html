@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTPS 취약점 점검</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: calc(100% - 16px);
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>HTTPS 취약점 점검 페이지</h1>
+    <div class="nav">
+        <a href="index.html">홈</a>
+        <a href="myinfo.html">내 정보</a>
+        <a href="board.html">게시판</a>
+        <a href="xml_parser.html">XML 파서</a>
+        <a href="redirect.html">URL 리다이렉션</a>
+    </div>
+    
+    <div class="container">
+        <h2>HTTPS 프로토콜 점검: SSL/TLS 버전 확인</h2>
+        <p>점검할 URL을 입력하여 SSL Labs를 통해 해당 서버에서 사용하는 SSL/TLS 버전 및 보안 상태를 확인합니다.</p>
+        <input type="text" id="ssl-url" placeholder="예: example.com 또는 https://www.example.com">
+        <button onclick="checkSSLVersion()">SSL Labs에서 SSL/TLS 점검하기</button>
+        <div id="ssl-version-result" style="margin-top: 10px;"></div>
+        <p><strong>참고:</strong> 입력한 URL은 SSL Labs(https://www.ssllabs.com/ssltest/)의 분석 도구로 전달되어 상세한 SSL/TLS 보안 검사를 수행합니다. 도메인 이름만 입력해도 됩니다.</p>
+    </div>
+
+    <div class="container">
+        <h2>HTTPS 암호 알고리즘 이용: 취약한 암호 스위트 정보</h2>
+        <p>취약한 암호 스위트란 112비트 미만의 암호 강도를 가지는 RC2, RC4, ADH 등의 알고리즘을 사용하는 암호화 방법으로, 현대 보안 표준에서는 사용이 권장되지 않습니다.</p>
+        <h3>취약한 암호 스위트의 위험성</h3>
+        <ul>
+            <li><strong>RC4</strong>: 여러 바이트의 통계적 편향성이 발견되어 공격 가능성이 있으며, IETF에서는 2015년 이후 사용 중단을 권고했습니다.</li>
+            <li><strong>RC2</strong>: 64비트 키를 사용하는 암호로, 현대 컴퓨팅 파워로 해독이 가능합니다.</li>
+            <li><strong>ADH (Anonymous Diffie-Hellman)</strong>: 인증 없이 키 교환을 수행하여 중간자 공격에 취약합니다.</li>
+            <li><strong>DES/3DES</strong>: 56비트/112비트 암호화 방식으로 현대 컴퓨팅 환경에서는 안전하지 않습니다.</li>
+        </ul>
+        <h3>보안 권장사항</h3>
+        <ul>
+            <li>최소 128비트 이상의 암호 강도를 갖는 AES, ChaCha20 등의 현대적 암호 알고리즘 사용</li>
+            <li>정기적인 SSL/TLS 설정 업데이트 및 취약한 암호 스위트 비활성화</li>
+            <li>TLS 1.2 이상 버전 사용 및 TLS 1.0/1.1 비활성화</li>
+            <li><a href="https://www.ssllabs.com/ssltest/" target="_blank">SSL Labs</a>를 통한 서버 보안 설정 정기 점검</li>
+        </ul>
+        <p><strong>참고:</strong> 웹 브라우저는 보안을 위해 취약한 암호 스위트를 사용한 연결 시도를 차단합니다. 서버의 취약한 암호 스위트 설정 여부는 전문 보안 도구를 통해 확인해야 합니다.</p>
+    </div>
+
+    <div class="container">
+        <h2>HTTPS 컴포넌트 사용: Heartbleed 취약점 예시 패킷</h2>
+        <p>Heartbleed (CVE-2014-0160)는 OpenSSL 라이브러리의 TLS Heartbeat 확장 구현 오류로 인해 발생한 취약점입니다. 공격자는 이를 악용하여 서버 메모리의 내용을 최대 64KB까지 탈취할 수 있었습니다. 여기에는 개인 키, 사용자 이름, 비밀번호 등 민감한 정보가 포함될 수 있었습니다.</p>
+        <p>다음은 Heartbleed 공격에 사용될 수 있는 Heartbeat 요청 패킷의 예시 구조입니다.</p>
+        <pre>
+TLS Record Layer:
+  Content Type: Heartbeat (24)
+  Version: TLS 1.1 (0x0302) or TLS 1.2 (0x0303)
+  Length: 0xFFFF (Maximum payload length)
+
+Heartbeat Message:
+  Type: Heartbeat Request (1)
+  Payload Length: 0x4000 (16384) - Advertised length by attacker
+  Payload: [Attacker-controlled data, e.g., 'A' * 16384]
+  Padding: [Random data]
+        </pre>
+        <p><strong>설명:</strong> 공격자는 Payload Length 필드에 실제 Payload 길이보다 훨씬 큰 값을 지정하여 서버가 응답 시 지정된 길이만큼의 메모리 내용을 읽어 보내도록 유도합니다. 서버는 실제 Payload 길이만 확인하고 버퍼 오버리드를 수행하여 메모리 내용을 노출하게 됩니다.</p>
+    </div>
+
+    <div class="container">
+        <h2>HTTPS 재협상 허용 설정</h2>
+        <p>HTTPS 재협상(Renegotiation)은 클라이언트와 서버 간에 이미 수립된 HTTPS 연결 내에서 새로운 암호화 매개변수를 협상하는 과정입니다. 이는 보안 수준을 높이거나 클라이언트 인증서를 요구하는 등의 목적으로 사용될 수 있습니다.</p>
+        <p>그러나 안전하지 않은 재협상(Insecure Renegotiation)은 중간자(Man-in-the-Middle) 공격에 취약점을 제공할 수 있습니다. 공격자는 초기 안전한 연결을 가로챈 후, 재협상 과정을 통해 악성 요청을 삽입하거나 세션을 탈취할 수 있습니다.</p>
+        
+        <h3>재협상 허용 시 (취약할 수 있음)</h3>
+        <p>서버가 클라이언트의 재협상 요청을 제한 없이 허용하는 경우, 공격자는 이를 악용하여 이미 인증된 연결에 자신의 요청을 주입할 수 있습니다. 예를 들어, 공격자는 사용자가 은행 사이트에 로그인한 안전한 세션을 가로챈 후, 재협상을 시작하여 사용자 몰래 자금 이체와 같은 악성 요청을 서버에 보낼 수 있습니다. 서버는 재협상된 연결을 동일한 사용자의 세션으로 인식하여 요청을 처리할 위험이 있습니다.</p>
+
+        <h3>재협상 미허용 시 (안전)</h3>
+        <p>서버가 안전하지 않은 재협상을 허용하지 않도록 설정된 경우, 이러한 중간자 공격 시도가 차단됩니다. RFC 5746에 정의된 TLS Renegotiation Indication Extension을 사용하여 안전한 재협상을 구현하거나, 아예 재협상을 비활성화하는 것이 권장됩니다.</p>
+        <p>안전한 재협상은 클라이언트와 서버 모두가 재협상 시작 메시지에 대한 암호화 해시를 교환하여, 해당 재협상이 원래의 안전한 연결에서 시작되었음을 확인하는 방식으로 작동합니다.</p>
+    </div>
+
+    <div class="container">
+        <h2>URL 리다이렉션 취약점 점검</h2>
+        <p>URL 리다이렉션 취약점(Open Redirect)은 웹 애플리케이션이 사용자로부터 받은 입력값을 검증 없이 리다이렉션 대상 URL로 사용할 때 발생합니다. 공격자는 이를 이용해 사용자를 피싱 사이트나 악성 웹사이트로 유도할 수 있습니다.</p>
+        
+        <h3>취약점 점검 방법</h3>
+        <p>아래 텍스트 필드에 URL을 입력하여 리다이렉션 취약점을 테스트해 볼 수 있습니다.</p>
+        <input type="text" id="redirect-url" placeholder="예: https://example.com 또는 //evil.com">
+        <button onclick="testRedirect()">리다이렉션 테스트</button>
+        <div id="redirect-result" style="margin-top: 10px;"></div>
+        
+        <h3>URL 리다이렉션 취약점 종류</h3>
+        <ul>
+            <li><strong>기본 리다이렉션</strong>: <code>https://example.com/redirect?url=https://attacker.com</code></li>
+            <li><strong>경로 기반 리다이렉션</strong>: <code>https://example.com/redirect/https://attacker.com</code></li>
+            <li><strong>프로토콜 상대 경로 이용</strong>: <code>https://example.com/redirect?url=//attacker.com</code></li>
+            <li><strong>데이터 URI 스킴 사용</strong>: <code>https://example.com/redirect?url=data:text/html,</code></li>
+            <li><strong>자바스크립트 URI 스킴 사용</strong>: <code>https://example.com/redirect?url=javascript:alert('XSS')</code></li>
+        </ul>
+        
+        <h3>보안 권장사항</h3>
+        <ul>
+            <li><strong>허용 목록(Whitelist) 방식 사용</strong>: 안전한 도메인 목록만 허용</li>
+            <li><strong>절대 경로 사용 제한</strong>: 상대 경로만 허용하여 외부 사이트로의 리다이렉션 방지</li>
+            <li><strong>입력값 유효성 검증</strong>: 리다이렉션 URL에 대한 엄격한 형식 검증 수행</li>
+            <li><strong>간접 리다이렉션 사용</strong>: 직접 URL 파라미터 대신 안전한 맵핑 ID 사용</li>
+            <li><strong>CSRF 토큰 적용</strong>: 리다이렉션 요청에 CSRF 토큰 요구</li>
+        </ul>
+        
+        <h3>점검 도구 예시</h3>
+        <p>다음은 URL 리다이렉션 취약점을 점검하는 간단한 테스트 도구입니다. 실제 점검 시에는 더 복잡한 우회 기법을 시도해야 합니다.</p>
+        <pre>
+# 리다이렉션 취약점 점검을 위한 간단한 파이썬 스크립트 예시
+import requests
+
+def test_redirect(target_url, payloads):
+    for payload in payloads:
+        test_url = f"{target_url}?url={payload}"
+        print(f"Testing: {test_url}")
+        try:
+            response = requests.get(test_url, allow_redirects=False)
+            if response.status_code in [301, 302, 303, 307, 308]:
+                location = response.headers.get('Location', '')
+                if payload in location or payload.replace('https://', '') in location:
+                    print(f"[취약] 리다이렉션 발견: {location}")
+                else:
+                    print(f"[안전] 리다이렉션 되었으나 안전한 URL로: {location}")
+            else:
+                print(f"[안전] 리다이렉션 없음 (상태코드: {response.status_code})")
+        except Exception as e:
+            print(f"오류 발생: {e}")
+
+
+        </pre>
+    </div>
+
+    <script>
+        function checkSSLVersion() {
+            const url = document.getElementById('ssl-url').value;
+            const resultDiv = document.getElementById('ssl-version-result');
+            if (url) {
+                // URL에서 프로토콜, 호스트명만 추출 
+                let targetUrl = url;
+                try {
+                    const urlObj = new URL(url);
+                    targetUrl = urlObj.hostname;
+                } catch (e) {
+                    // URL 형식이 아닌 경우 입력값 그대로 사용
+                }
+                
+                // SSLLabs 테스트 사이트로 리다이렉트
+                const ssllabsUrl = `https://www.ssllabs.com/ssltest/analyze.html?d=${encodeURIComponent(targetUrl)}&hideResults=on`;
+                
+                resultDiv.innerHTML = `<p>SSL Labs로 리다이렉트합니다...</p>`;
+                window.open(ssllabsUrl, '_blank');
+            } else {
+                resultDiv.innerHTML = `<p style="color: red;">URL을 입력해주세요.</p>`;
+            }
+        }
+
+        function testRedirect() {
+            const url = document.getElementById('redirect-url').value;
+            const resultDiv = document.getElementById('redirect-result');
+            
+            if (!url) {
+                resultDiv.innerHTML = `<p style="color: red;">URL을 입력해주세요.</p>`;
+                return;
+            }
+            
+            // URL 분석 결과
+            let analysisResult = "<h4>URL 리다이렉션 분석 결과:</h4>";
+            let vulnerabilityDetected = false;
+            
+            // 기본 검사
+            if (url.includes('javascript:') || url.includes('data:')) {
+                analysisResult += `<p style="color: red;">⚠️ 위험: JavaScript 또는 Data URI 스킴이 감지되었습니다.</p>`;
+                vulnerabilityDetected = true;
+            }
+            
+            // 상대 경로 URL 검사 (//, //evil.com 형식)
+            if (url.startsWith('//')) {
+                analysisResult += `<p style="color: red;">⚠️ 위험: 프로토콜 상대 경로가 감지되었습니다. 현재 사이트의 프로토콜을 그대로 사용합니다.</p>`;
+                vulnerabilityDetected = true;
+            }
+            
+            // 외부 도메인 검사
+            try {
+                const urlObj = new URL(url);
+                const isExternalDomain = !urlObj.hostname.endsWith('example.com') && 
+                                        !urlObj.hostname.endsWith('localhost') && 
+                                        !urlObj.hostname.endsWith('127.0.0.1');
+                if (isExternalDomain) {
+                    analysisResult += `<p style="color: orange;">⚠️ 주의: 외부 도메인으로의 리다이렉션이 감지되었습니다: ${urlObj.hostname}</p>`;
+                    vulnerabilityDetected = true;
+                }
+            } catch (e) {
+                // URL이 유효하지 않은 형식일 경우
+                if (!url.startsWith('/')) {
+                    analysisResult += `<p style="color: orange;">⚠️ 주의: 유효하지 않은 URL 형식입니다.</p>`;
+                }
+            }
+            
+            // 인코딩된 문자 검사
+            if (url.includes('%') || url.includes('\\')) {
+                analysisResult += `<p style="color: orange;">⚠️ 주의: URL 인코딩된 문자가 감지되었습니다. 우회 시도일 수 있습니다.</p>`;
+                vulnerabilityDetected = true;
+            }
+            
+            // 안전한 URL인 경우
+            if (!vulnerabilityDetected) {
+                analysisResult += `<p style="color: green;">✓ 안전: 특별한 리다이렉션 취약점이 감지되지 않았습니다.</p>`;
+            }
+            
+            // 출력 결과
+            resultDiv.innerHTML = analysisResult + 
+                                `<p><strong>입력된 URL:</strong> ${url}</p>` +
+                                `<p><strong>보안 권장사항:</strong> 신뢰할 수 있는 도메인 목록만 허용하고, 상대 경로만 사용하세요.</p>`;
+        }
+
+        // 취약한 암호 스위트 테스트 함수는 제거됨
+		function checkLoginStatus() {
+            const userId = getCookie("user_id");
+            if (userId) {
+                document.querySelector(".nav").innerHTML += `<span style="float: right;">사용자: ${userId} <a href="#" onclick="logout()">로그아웃</a></span>`;
+            }
+        }
+        
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+		 window.onload = checkLoginStatus;
+    </script>
+</body>
+</html>

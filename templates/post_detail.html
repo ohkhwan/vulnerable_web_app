@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게시글 상세</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .post-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .post-content {
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+        }
+        .loading, .error {
+            text-align: center;
+            font-size: 1.1em;
+            color: #555;
+        }
+        .error {
+            color: #d9534f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" class="loading">게시글을 불러오는 중입니다...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="post-detail" style="display: none;">
+            <h1 id="post-title"></h1>
+            <div class="post-meta">
+                작성자: <span id="post-author"></span> | 작성일: <span id="post-date"></span>
+            </div>
+            <div id="post-content" class="post-content"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const postId = urlParams.get('post_id');
+
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error');
+            const postDetailDiv = document.getElementById('post-detail');
+            const postTitle = document.getElementById('post-title');
+            const postAuthor = document.getElementById('post-author');
+            const postDate = document.getElementById('post-date');
+            const postContent = document.getElementById('post-content');
+
+            if (!postId) {
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = '오류: 게시글 ID가 제공되지 않았습니다.';
+                return;
+            }
+
+            fetch(`/api/posts/${postId}`)
+                .then(response => {
+                    if (!response.ok) {
+                         return response.json().then(data => {
+                            throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                         });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loadingDiv.style.display = 'none';
+                    if (data.success && data.post) {
+                        postDetailDiv.style.display = 'block';
+                        postTitle.textContent = data.post.title;
+                        postAuthor.textContent = data.post.author_name;
+                        // 날짜 형식을 원하는 대로 조정할 수 있습니다.
+                        postDate.textContent = new Date(data.post.created_at).toLocaleString();
+                        postContent.textContent = data.post.content; // Use textContent to prevent XSS
+                    } else {
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = data.message || '게시글을 불러오는데 실패했습니다.';
+                    }
+                })
+                .catch(error => {
+                    loadingDiv.style.display = 'none';
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = `오류 발생: ${error.message}`;
+                    console.error('Error fetching post details:', error);
+                });
+        });
+    </script>
+</body>
+</html>

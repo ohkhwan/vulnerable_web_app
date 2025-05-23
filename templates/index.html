@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>취약한 웹 애플리케이션</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .nav {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .nav-left {
+            display: flex;
+        }
+        .nav-right {
+            display: flex;
+        }
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .nav a:last-child {
+            margin-right: 0;
+        }
+        .user-info {
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>취약한 웹 애플리케이션</h1>
+    <div class="nav">
+        <div class="nav-left">
+            <a href="index.html">홈</a>
+            <a href="myinfo.html" id="myinfo-link" style="display: none;">내 정보</a>
+			<a href="board.html" id="board" style="display: none;" >게시판</a>
+			<a href="xml_parser.html" id="xml" style="display: none;">XML 파서</a>
+			<a href="redirect.html" id="redirect" style="display: none;">URL 리다이렉션</a>
+			<a href="ssrf_test.html" id="ssrf" style="display: none;">SSRF 테스트</a>
+        </div>
+        <div class="nav-right" id="auth-links">
+            <!-- 이 부분은 JavaScript로 동적으로 채워질 예정입니다 -->
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>보안 테스트 환경</h2>
+        <p>이 웹 애플리케이션은 다음 취약점을 포함하고 있습니다:</p>
+        <ul>
+            <li>SQL 인젝션 취약점</li>
+            <li>XSS(Cross-Site Scripting) 취약점</li>
+            <li>쿠키 기반 취약한 인증</li>
+            <li>부적절한 접근 제어</li>
+            <li>불안전한 비밀번호 관리</li>
+            <li>XML 외부 객체 (XXE) 취약점</li>
+            <li>안전하지 않은 URL 리다이렉션</li>
+        <li>SSRF(Server-Side Request Forgery) 취약점</li>
+        </ul>
+        <p><strong>정보보호부 ICT진단팀 교육 웹 사이트</strong></p>
+    </div>
+
+<script>
+    // 쿠키 가져오기 함수
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    // 로그아웃 함수
+    function logout() {
+        // Call the backend logout endpoint
+        fetch('/logout', {
+            method: 'GET' // Or 'POST', depends on your app.py route setup
+        })
+        .then(response => {
+            // Regardless of backend success, clear client-side cookie and redirect
+            document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            window.location.href = "index.html";
+        })
+        .catch(error => {
+            console.error('Logout failed:', error);
+            // Even if fetch fails, try to clear cookie and redirect
+            document.cookie = "user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            window.location.href = "index.html";
+        });
+    }
+
+    // 페이지 로드 시 로그인 상태 확인 및 네비게이션 업데이트
+    window.onload = function() {
+        const userId = getCookie("user_id");
+        const myInfoLink = document.getElementById("myinfo-link");
+        const board = document.getElementById("board");
+        const xml = document.getElementById("xml");
+        const redirect = document.getElementById("redirect");
+		const ssrf = document.getElementById("ssrf");
+        const authLinks = document.getElementById("auth-links");
+
+        if (userId) {
+            // 로그인 상태 - 내 정보 메뉴 표시, 회원가입/비밀번호 초기화/로그인 숨김
+            myInfoLink.style.display = "inline";
+			board.style.display = "inline";
+			xml.style.display = "inline";
+			redirect.style.display = "inline";
+			ssrf.style.display = "inline";
+            authLinks.innerHTML = `
+                <span class="user-info">사용자: ${userId}</span>
+                <a href="#" onclick="logout()">로그아웃</a>
+            `;
+        } else {
+            // 비로그인 상태 - 내 정보 메뉴 숨김, 회원가입/비밀번호 초기화/로그인 표시
+            myInfoLink.style.display = "none";
+            authLinks.innerHTML = `
+                <a href="register.html">회원가입</a>
+                <a href="reset_password.html">비밀번호 초기화</a>
+                <a href="login.html">로그인</a>
+            `;
+        }
+    };
+</script>
+
+</body>
+</html>
